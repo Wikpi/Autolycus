@@ -20,6 +20,7 @@ func Initiate(scrapeURL string, parameter string, scrapePath string, showData ..
 
 	if showData[0] {
 		fmt.Println(scrapeURL, " ", parameter, " ", scrapePath)
+		getRequest(c)
 	}
 
 	c.OnHTML(parameter, func(h *colly.HTMLElement) {
