@@ -1,4 +1,4 @@
-module "github.com/Wikpi/Autolycus"
+module github.com/Wikpi/Autolycus
 
 go 1.18
 
