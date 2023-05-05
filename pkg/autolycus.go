@@ -10,13 +10,17 @@ import (
 	"github.com/gocolly/colly"
 )
 
-func Initiate(scrapeURL string, parameter string, scrapePath string) {
+func Initiate(scrapeURL string, parameter string, scrapePath string, showData ...bool) {
 	// Variable, where the scrapped data is stored
 	var data []string
 
 	domain := getDomain(scrapeURL)
 
 	c := colly.NewCollector(colly.AllowedDomains(domain))
+
+	if showData[0] {
+		fmt.Println(scrapeURL, " ", parameter, " ", scrapePath)
+	}
 
 	c.OnHTML(parameter, func(h *colly.HTMLElement) {
 		scrapeData(parameter, &data, h.Text)
@@ -27,6 +31,10 @@ func Initiate(scrapeURL string, parameter string, scrapePath string) {
 	})
 
 	c.OnScraped(func(r *colly.Response) {
+		if showData[0] {
+			fmt.Println(data)
+		}
+
 		writeData(scrapePath, data)
 	})
 
@@ -84,4 +92,11 @@ func writeData(scrapePath string, data []string) {
 			log.Fatal("Couldnt write to scrapePath file: ", err)
 		}
 	}
+}
+
+// Displays status
+func getRequest(c *colly.Collector) {
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting ", r.URL)
+	})
 }

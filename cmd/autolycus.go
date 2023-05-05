@@ -111,3 +111,10 @@ func writeData(scrapePath string, data []string) {
 		}
 	}
 }
+
+// Displays status
+func getRequest(c *colly.Collector) {
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting ", r.URL)
+	})
+}
