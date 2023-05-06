@@ -5,133 +5,71 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 
-	"github.com/gocolly/colly"
+	"github.com/anaskhan96/soup"
 )
 
 // Variable, where the scrapped data is stored
-var data []string
+var Data []string
 
-// Temporary scrape function
-func ScrapeData(scrapeURL string, arg string, scrapePath string, action string) []string {
-	c := Initiate(scrapeURL)
-	GetRequest(c)
+// ONE FUNCTION TO SCRAPE IT ALL (Lotr)
+func ScrapeData(scrapeURL string, arg []string, scrapePath string, actions ...string) *[]string {
+	doc := Initiate(scrapeURL)
 
-	Scrape(c, arg)
+	Scrape(&Data, doc, arg)
 
-	switch action {
-	case "give":
-		return GiveData(c)
-	case "print":
-		PrintData(c)
-	case "file":
-		WriteData(c, scrapePath)
+	for _, action := range actions {
+		switch action {
+		case "write":
+			WriteData(scrapePath, Data)
+		case "print":
+			PrintData(Data)
+		}
 	}
 
-	Visit(c, scrapeURL)
-
-	return nil
+	return &Data
 }
 
-// Initiates the scraper
-func Initiate(scrapeURL string) *colly.Collector {
-	domain := getDomain(scrapeURL)
-
-	c := colly.NewCollector(colly.AllowedDomains(domain))
-
-	return c
-}
-
-// Visits the provided URL
-func Visit(c *colly.Collector, scrapeURL string) {
-	c.Visit(scrapeURL)
-}
-
-// Finds the domain name from the given URL
-func getDomain(scrapeURL string) string {
-	domain := ""
-
-	if strings.Contains(scrapeURL, "http") {
-		domain = strings.Split(scrapeURL, "/")[2]
-	} else {
-		domain = strings.Split(scrapeURL, "/")[0]
+// Initiates the scraper (gets an html string and parses it)
+func Initiate(scrapeURL string) soup.Root {
+	resp, err := soup.Get(scrapeURL)
+	if err != nil {
+		log.Fatal("Couldnt get html string")
 	}
 
-	return domain
+	doc := soup.HTMLParse(resp)
+
+	return doc
 }
 
-// Scrapes the given args from the website
-func Scrape(c *colly.Collector, arg string) []string {
-	var lData []string
+// Scrapes the provided argument (tag, key, value)
+func Scrape(lData *[]string, doc soup.Root, arg []string) {
+	colors := doc.FindAll(arg[0], arg[1], arg[2])
 
-	c.OnHTML(arg, func(h *colly.HTMLElement) {
-		lData = append(lData, h.Text)
-		data = append(data, h.Text)
-	})
-
-	return lData
+	for _, color := range colors {
+		*lData = append(*lData, color.Text())
+	}
 }
 
 // Writes the scraped data to the specified filePath
-func WriteData(c *colly.Collector, scrapePath string) {
-	c.OnScraped(func(r *colly.Response) {
-		file, err := os.OpenFile(scrapePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+func WriteData(scrapePath string, lData []string) {
+	file, err := os.OpenFile(scrapePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Fatal("Couldnt open scrapePath file: ", err)
+	}
+	defer file.Close()
+
+	err = ioutil.WriteFile(scrapePath, []byte(""), 0644)
+
+	for _, k := range lData {
+		_, err := file.WriteString(k + ", ")
 		if err != nil {
-			log.Fatal("Couldnt open scrapePath file: ", err)
+			log.Fatal("Couldnt write to scrapePath file: ", err)
 		}
-		defer file.Close()
-
-		err = ioutil.WriteFile(scrapePath, []byte(""), 0644)
-
-		for _, k := range data {
-			_, err := file.WriteString(k + ", ")
-			if err != nil {
-				log.Fatal("Couldnt write to scrapePath file: ", err)
-			}
-		}
-	})
+	}
 }
 
-// Writes the scraped data to the specified filePath
-func PrintData(c *colly.Collector) {
-	c.OnScraped(func(r *colly.Response) {
-		fmt.Println(data)
-	})
-}
-
-// Gives back data slice - not working!
-func GiveData(c *colly.Collector) []string {
-	var lData []string
-
-	c.OnScraped(func(r *colly.Response) {
-		lData = data
-	})
-	return lData
-}
-
-// Check for any errors while scraping the website
-func CheckError(c *colly.Collector) {
-	c.OnError(func(r *colly.Response, e error) {
-		file, err := os.OpenFile("./logs/logs.txt", os.O_APPEND|os.O_WRONLY, 0600)
-		if err != nil {
-			fmt.Print(err)
-		}
-		defer file.Close()
-
-		// Writes error to logs file
-		if _, err := file.WriteString(e.Error()); err != nil {
-			fmt.Println(err)
-		}
-
-		// Exits program and gives message where error occured
-		log.Fatal("Error scraping the website.")
-	})
-}
-
-// Displays status
-func GetRequest(c *colly.Collector) {
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting ", r.URL)
-	})
+// Prints out the data
+func PrintData(lData []string) {
+	fmt.Println(lData)
 }
